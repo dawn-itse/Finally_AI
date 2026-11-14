@@ -95,8 +95,6 @@ class GameState:
             nx, ny = tank.x + dx, tank.y + dy
             if not self.is_cell_blocked(nx, ny):
                 legal.append(action)
-            elif self.is_inside(nx, ny) and tank.direction != direction:
-                legal.append(action)
         legal.append("STAY")
         return legal
 
