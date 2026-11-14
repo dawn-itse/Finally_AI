@@ -7,6 +7,18 @@ class BaseAgent:
     def __init__(self, player_id: int, name: str = "BaseAgent"):
         self.player_id = player_id
         self.name = name
+        self.explored_states = 0
+        self.last_decision_time = 0.0
+        self.total_decision_time = 0.0
+        self.total_explored_states = 0
+        self.decisions_count = 0
+
+    def reset_metrics(self):
+        self.explored_states = 0
+        self.last_decision_time = 0.0
+        self.total_decision_time = 0.0
+        self.total_explored_states = 0
+        self.decisions_count = 0
 
     def get_action(self, state) -> str:
         raise NotImplementedError("Subclasses must implement get_action(state).")

@@ -1,0 +1,5 @@
+python-sat
+pygame
+numpy
+matplotlib
+jupyter

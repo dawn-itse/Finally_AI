@@ -1,3 +1,4 @@
+from collections import deque
 import math
 import time
 from agents.base_agent import BaseAgent
@@ -144,7 +145,7 @@ class MinimaxAgent(BaseAgent):
         return self.evaluate(state)
 
     def _order_actions(self, state, actions: list, acting_player: int) -> list:
-        if not self.use_alpha_beta:
+        if not self.use_heuristic:
             return actions
 
         tank = state.tanks.get(acting_player)
@@ -178,7 +179,6 @@ class MinimaxAgent(BaseAgent):
 
         while state.is_inside(cx, cy):
             if (cx, cy) in state.walls and state.walls[(cx, cy)].is_alive():
-                # Wall blocks sight, unless wall is directly in front of enemy base/tank
                 return False
             if enemy_tank.is_alive() and cx == enemy_tank.x and cy == enemy_tank.y:
                 return True
@@ -187,6 +187,23 @@ class MinimaxAgent(BaseAgent):
             cx += dx
             cy += dy
         return False
+
+    def _bfs_distance(self, state, start_x: int, start_y: int, target_x: int, target_y: int) -> int:
+        if start_x == target_x and start_y == target_y:
+            return 0
+        visited = {(start_x, start_y)}
+        queue = deque([(start_x, start_y, 0)])
+        while queue:
+            cx, cy, d = queue.popleft()
+            for dx, dy in DIRECTION_DELTAS.values():
+                nx, ny = cx + dx, cy + dy
+                if nx == target_x and ny == target_y:
+                    return d + 1
+                if (nx, ny) not in visited and state.is_inside(nx, ny):
+                    if (nx, ny) not in state.walls or not state.walls[(nx, ny)].is_alive():
+                        visited.add((nx, ny))
+                        queue.append((nx, ny, d + 1))
+        return abs(start_x - target_x) + abs(start_y - target_y)
 
     # EVAL(s) in Lecture 07 (Slide 27-28)
     def evaluate(self, state) -> float:
@@ -204,37 +221,59 @@ class MinimaxAgent(BaseAgent):
         score += 60.0 * (my_tank.hp - op_tank.hp)
         score += 50.0 * (my_base.hp - op_base.hp)
 
-        # 2. Distance advantage (approach enemy tank and enemy base)
-        dist_to_op_base = abs(my_tank.x - op_base.x) + abs(my_tank.y - op_base.y)
-        dist_to_op_tank = abs(my_tank.x - op_tank.x) + abs(my_tank.y - op_tank.y)
+        # 2. Path-aware distance advantage (navigate around walls to enemy tank and base)
+        dist_to_op_base = self._bfs_distance(state, my_tank.x, my_tank.y, op_base.x, op_base.y)
+        dist_to_op_tank = self._bfs_distance(state, my_tank.x, my_tank.y, op_tank.x, op_tank.y)
         op_dist_to_my_base = abs(op_tank.x - my_base.x) + abs(op_tank.y - my_base.y)
 
-        score -= 3.0 * dist_to_op_base
-        score -= 2.0 * dist_to_op_tank
+        score -= 3.5 * dist_to_op_base
+        score -= 2.5 * dist_to_op_tank
         score += 2.5 * op_dist_to_my_base
 
-        # 3. Line of sight / aiming bonus
+        # 3. Line of sight & directional aiming bonus
         if self._has_line_of_sight(state, my_tank.x, my_tank.y, my_tank.direction, self.opponent_id):
             score += 25.0
-        if self._has_line_of_sight(state, op_tank.x, op_tank.y, op_tank.direction, self.player_id):
-            score -= 25.0
 
-        # 4. Bullet danger & attack bonus
+        odx, ody = DIRECTION_DELTAS[op_tank.direction]
+        cx, cy = op_tank.x + odx, op_tank.y + ody
+        while state.is_inside(cx, cy):
+            if (cx, cy) in state.walls and state.walls[(cx, cy)].is_alive():
+                break
+            if cx == my_tank.x and cy == my_tank.y:
+                score -= 20.0
+                break
+            cx += odx
+            cy += ody
+
+        mdx, mdy = DIRECTION_DELTAS[my_tank.direction]
+        if (op_tank.x - my_tank.x) * mdx + (op_tank.y - my_tank.y) * mdy > 0:
+            score += 3.0
+        if (op_base.x - my_tank.x) * mdx + (op_base.y - my_tank.y) * mdy > 0:
+            score += 3.0
+
+        # 4. Active bullet trajectory lookahead (stop at first obstacle or target)
         for bullet in state.bullets:
             if not bullet.active:
                 continue
             bdx, bdy = DIRECTION_DELTAS[bullet.direction]
-            # Check next 3 cells of bullet trajectory
             for step in range(1, 4):
                 bx = bullet.x + bdx * step
                 by = bullet.y + bdy * step
-                if bx == my_tank.x and by == my_tank.y:
-                    score -= 45.0
-                if bx == my_base.x and by == my_base.y:
-                    score -= 40.0
-                if bx == op_tank.x and by == op_tank.y:
-                    score += 45.0
-                if bx == op_base.x and by == op_base.y:
-                    score += 40.0
+                if not state.is_inside(bx, by):
+                    break
+                if (bx, by) in state.walls and state.walls[(bx, by)].is_alive():
+                    break
+                if my_tank.is_alive() and bx == my_tank.x and by == my_tank.y:
+                    score -= 35.0
+                    break
+                if my_base.is_alive() and bx == my_base.x and by == my_base.y:
+                    score -= 30.0
+                    break
+                if op_tank.is_alive() and bx == op_tank.x and by == op_tank.y:
+                    score += 35.0
+                    break
+                if op_base.is_alive() and bx == op_base.x and by == op_base.y:
+                    score += 30.0
+                    break
 
         return score

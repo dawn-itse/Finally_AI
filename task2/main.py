@@ -4,10 +4,18 @@ from game.state import GameState
 
 
 def create_midgame_scenario() -> GameState:
-    """Create a symmetric open-play midgame scenario for comparing the 4 search configurations."""
+    """Create a midgame combat scenario where both tanks have maneuvered into the center."""
     state = GameState.create_default_map()
-    state.apply_action("MOVE_LEFT")
-    state.apply_action("MOVE_LEFT")
+    opening_moves = [
+        "MOVE_UP",    # P1: (4, 7) -> (4, 6)
+        "MOVE_DOWN",  # P2: (4, 1) -> (4, 2)
+        "MOVE_UP",    # P1: (4, 6) -> (4, 5)
+        "MOVE_LEFT",  # P2: (4, 2) -> (3, 2)
+        "MOVE_LEFT",  # P1: (4, 5) -> (3, 5)
+        "MOVE_DOWN",  # P2: (3, 2) -> (3, 3)
+    ]
+    for move in opening_moves:
+        state.apply_action(move)
     return state
 
 

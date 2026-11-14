@@ -89,12 +89,15 @@ class GameState:
         if tank is None or not tank.is_alive():
             return ["STAY"]
 
-        legal = ["FIRE", "STAY"]
+        legal = ["FIRE"]
         for action, direction in ACTION_TO_DIRECTION.items():
             dx, dy = DIRECTION_DELTAS[direction]
             nx, ny = tank.x + dx, tank.y + dy
             if not self.is_cell_blocked(nx, ny):
                 legal.append(action)
+            elif self.is_inside(nx, ny) and tank.direction != direction:
+                legal.append(action)
+        legal.append("STAY")
         return legal
 
     # RESULT(s, a) in Lecture 07 (returns a new state without modifying current state)
@@ -195,11 +198,17 @@ class GameState:
             return 2
         return None
 
-    # UTILITY(s, p) in Lecture 07
+    # UTILITY(s, p) in Lecture 07: terminal win/loss payoff plus material HP balance
     def get_utility(self, player_id: int = 1) -> float:
         winner = self.get_winner()
         if winner == player_id:
-            return 1000.0
+            return 1000.0 - self.turn_count
         elif winner is not None:
-            return -1000.0
-        return 0.0
+            return -1000.0 + self.turn_count
+
+        opponent_id = 2 if player_id == 1 else 1
+        my_tank = self.tanks[player_id]
+        op_tank = self.tanks[opponent_id]
+        my_base = self.bases[player_id]
+        op_base = self.bases[opponent_id]
+        return 60.0 * (my_tank.hp - op_tank.hp) + 50.0 * (my_base.hp - op_base.hp)

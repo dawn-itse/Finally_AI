@@ -1,8 +1,16 @@
 from nqueens_cnf import NQueensCNF, run_experiments
+from nqueens_min_conflicts import NQueensMinConflicts
 
 
 def main():
-    print("=== Task 1: N-Queens Problem with Propositional Logic (Glucose3) ===")
+    print("=== Task 1 Part 1: N-Queens with Min-Conflicts Local Search ===")
+    mc_solver = NQueensMinConflicts(n=8, max_steps=5000, seed=42)
+    res_std = mc_solver.solve_standard()
+    res_heur = mc_solver.solve_heuristic()
+    print(f"Standard Min-Conflicts (N=8): success={res_std['success']}, steps={res_std['steps']}, time={res_std['solver_time']:.6f}s")
+    print(f"Heuristic Min-Conflicts (N=8): success={res_heur['success']}, steps={res_heur['steps']}, time={res_heur['solver_time']:.6f}s\n")
+
+    print("=== Task 1 Part 2: N-Queens Problem with Propositional Logic (Glucose3) ===")
     n_demo = 8
     solver = NQueensCNF(n_demo)
     res = solver.solve()
