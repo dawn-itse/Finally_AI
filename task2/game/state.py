@@ -20,6 +20,7 @@ class GameState:
         self.bases = {}
         self.walls = {}
         self.bullets = []
+        self.position_history = {1: [], 2: []}
 
     def clone(self):
         new_state = GameState(self.width, self.height, self.max_turns)
@@ -29,6 +30,9 @@ class GameState:
         new_state.bases = {pid: base.clone() for pid, base in self.bases.items()}
         new_state.walls = {pos: wall.clone() for pos, wall in self.walls.items()}
         new_state.bullets = [b.clone() for b in self.bullets]
+        new_state.position_history = {
+            pid: list(hist) for pid, hist in self.position_history.items()
+        }
         return new_state
 
     @classmethod
@@ -111,12 +115,21 @@ class GameState:
         if tank is None or not tank.is_alive():
             return ["STAY"]
 
+        enemy_id = 2 if player_id == 1 else 1
+        enemy_base = self.bases.get(enemy_id)
+        enemy_tank = self.tanks.get(enemy_id)
+
         legal = ["FIRE"]
         for action, direction in ACTION_TO_DIRECTION.items():
             dx, dy = DIRECTION_DELTAS[direction]
             nx, ny = tank.x + dx, tank.y + dy
             if not self.is_cell_blocked(nx, ny):
                 legal.append(action)
+            elif tank.direction != direction and self.is_inside(nx, ny):
+                has_enemy_base = enemy_base is not None and enemy_base.is_alive() and (nx, ny) == (enemy_base.x, enemy_base.y)
+                has_enemy_tank = enemy_tank is not None and enemy_tank.is_alive() and (nx, ny) == (enemy_tank.x, enemy_tank.y)
+                if has_enemy_base or has_enemy_tank:
+                    legal.append(action)
         legal.append("STAY")
         return legal
 
@@ -139,14 +152,51 @@ class GameState:
                 if not self.is_cell_blocked(nx, ny):
                     tank.x = nx
                     tank.y = ny
+                    for b in self.bullets:
+                        if b.active and b.x == nx and b.y == ny:
+                            tank.take_damage(Bullet.DAMAGE)
+                            b.active = False
             elif action == "FIRE":
                 bullet = Bullet(tank.x, tank.y, tank.direction, owner_id=player_id)
                 self.bullets.append(bullet)
             elif action == "STAY":
                 pass
 
+        productive_fire = False
+        if tank is not None and tank.is_alive() and action == "FIRE":
+            dx, dy = DIRECTION_DELTAS[tank.direction]
+            op_id = 2 if player_id == 1 else 1
+            op_tank = self.tanks[op_id]
+            op_base = self.bases[op_id]
+            toward_enemy = (
+                (op_base.x - tank.x) * dx + (op_base.y - tank.y) * dy > 0
+                or (op_tank.x - tank.x) * dx + (op_tank.y - tank.y) * dy > 0
+            )
+            cx, cy = tank.x + dx, tank.y + dy
+            step = 1
+            while self.is_inside(cx, cy):
+                if (cx, cy) in self.walls and self.walls[(cx, cy)].is_alive():
+                    if toward_enemy and step <= 3:
+                        productive_fire = True
+                    break
+                if op_tank.is_alive() and (cx, cy) == (op_tank.x, op_tank.y):
+                    productive_fire = True
+                    break
+                if op_base.is_alive() and (cx, cy) == (op_base.x, op_base.y):
+                    productive_fire = True
+                    break
+                cx += dx
+                cy += dy
+                step += 1
+
         # Update all active bullets (each moves up to 3 cells, checking collision cell by cell)
         self._update_bullets()
+
+        if tank is not None and tank.is_alive() and not productive_fire:
+            hist = self.position_history.setdefault(player_id, [])
+            hist.append((tank.x, tank.y, tank.direction))
+            if len(hist) > 8:
+                del hist[:-8]
 
         self.turn_count += 1
         self.current_player = 2 if self.current_player == 1 else 1
