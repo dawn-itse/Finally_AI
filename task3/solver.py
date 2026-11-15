@@ -11,6 +11,9 @@ class KakuroSolver:
         start = perf_counter()
         self.steps = []
         self.backtracks = 0
+        self.nodes_expanded = 0
+        self.max_search_depth = 0
+        self.peak_active_nodes = 0
         self.processed = set()
         domains = self.csp.domains.copy()
         # Chỉ giữ các bộ số thỏa tổng và không trùng trong từng dãy.
@@ -53,13 +56,18 @@ class KakuroSolver:
                 return False
         return True
 
-    def _search(self, domains):
+    def _search(self, domains, depth=0):
+        # Độ sâu tính từ gốc; stack còn giữ cả gốc và node hiện tại.
+        self.max_search_depth = max(self.max_search_depth, depth)
+        self.peak_active_nodes = max(self.peak_active_nodes, depth + 1)
         # MRV chọn ô chưa cố định có ít giá trị nhất.
         undecided = [cell for cell in domains if len(domains[cell]) > 1]
         if not undecided:
             assignment = {cell: next(iter(values)) for cell, values in domains.items()}
             return assignment if self.csp.is_valid_solution(assignment) else None
 
+        # Chỉ đếm node sinh nhánh, không đếm lá hoặc bước lan truyền.
+        self.nodes_expanded += 1
         cell = min(undecided, key=lambda item: len(domains[item]))
         self.processed.add(cell)
         for value in sorted(domains[cell]):
@@ -67,7 +75,7 @@ class KakuroSolver:
             branch[cell] = {value}
             self.steps.append(("assign", cell, {cell: {value}}, f"MRV: try {value}"))
             if self._propagate(branch, self.csp.cell_constraints[cell]):
-                solution = self._search(branch)
+                solution = self._search(branch, depth + 1)
                 if solution is not None:
                     return solution
 

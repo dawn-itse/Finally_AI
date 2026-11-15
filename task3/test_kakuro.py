@@ -13,6 +13,7 @@ class KakuroTests(unittest.TestCase):
         self.assertIsNotNone(solution)
         self.assertTrue(csp.is_valid_solution(solution))
         self.assertEqual(len(solver.processed), white_cells)
+        self.assert_search_counts(solver, 0, 0, 1)
 
         # Kiểm tra trực tiếp trên bàn, độc lập với danh sách dãy của CSP.
         for r, row in enumerate(board):
@@ -48,6 +49,22 @@ class KakuroTests(unittest.TestCase):
         ]))
         self.assertIsNone(solver.solve())
         self.assertTrue(any(not changes[cell] for _, cell, changes, _ in solver.steps))
+        self.assert_search_counts(solver, 0, 0, 0)
+
+    def assert_search_counts(self, solver, expanded, depth, active):
+        self.assertEqual(solver.nodes_expanded, expanded)
+        self.assertEqual(solver.max_search_depth, depth)
+        self.assertEqual(solver.peak_active_nodes, active)
+
+    def test_search_counts_with_backtracking_and_reset(self):
+        csp = KakuroCSP(BOARDS["backtracking_demo"])
+        solver = KakuroSolver(csp)
+        for _ in range(2):
+            self.assertTrue(csp.is_valid_solution(solver.solve()))
+            self.assertEqual(solver.backtracks, 1)
+            # Có 4 lần gán, nhưng một nhánh bị loại trước khi gọi đệ quy.
+            self.assertEqual(sum(event[0] == "assign" for event in solver.steps), 4)
+            self.assert_search_counts(solver, 3, 3, 4)
 
     def test_duplicate_digits_with_correct_sums(self):
         csp = KakuroCSP([

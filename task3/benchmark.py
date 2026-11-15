@@ -37,6 +37,9 @@ def run_benchmark():
                 "backtracks": solver.backtracks,
                 "variables_processed": len(solver.processed),
                 "peak_bytes": peak,
+                "nodes_expanded": solver.nodes_expanded,
+                "max_search_depth": solver.max_search_depth,
+                "peak_active_nodes": solver.peak_active_nodes,
             })
 
     # Tạo file mới để giữ các lần đo trước.
@@ -50,16 +53,35 @@ def run_benchmark():
         writer.writeheader()
         writer.writerows(rows)
 
-    print("Board | Runs | Mean ms | SD ms | Mean backtracks | Mean variables | Mean peak KiB")
+    print("\nExecution and memory")
+    header = (f"{'Board':<18} {'Runs':>4} {'Avg ms':>10} {'SD ms':>9} "
+              f"{'Peak KiB*':>10} {'Backtracks*':>11} {'Vars*':>6}")
+    print(header)
+    print("-" * len(header))
     for name in BOARDS:
         runs = [row for row in rows if row["board"] == name]
         times = [row["time_ms"] for row in runs]
         backtracks = statistics.mean(row["backtracks"] for row in runs)
         variables = statistics.mean(row["variables_processed"] for row in runs)
         peak = statistics.mean(row["peak_bytes"] for row in runs) / 1024
-        print(f"{name} | {len(runs)} | {statistics.mean(times):.3f} | "
-              f"{statistics.stdev(times):.3f} | {backtracks:g} | {variables:g} | {peak:.2f}")
-    print(path)
+        print(f"{name:<18} {len(runs):>4} {statistics.mean(times):>10.3f} "
+              f"{statistics.stdev(times):>9.3f} {peak:>10.2f} "
+              f"{backtracks:>11g} {variables:>6g}")
+
+    print("\nSearch tree")
+    header = (f"{'Board':<18} {'Expanded*':>10} {'Max depth':>10} "
+              f"{'Peak active':>11}")
+    print(header)
+    print("-" * len(header))
+    for name in BOARDS:
+        runs = [row for row in rows if row["board"] == name]
+        expanded = statistics.mean(row["nodes_expanded"] for row in runs)
+        depth = max(row["max_search_depth"] for row in runs)
+        active = max(row["peak_active_nodes"] for row in runs)
+        print(f"{name:<18} {expanded:>10g} {depth:>10} {active:>11}")
+
+    print("\n* Mean over runs. Expanded and Peak active are counts in nodes.")
+    print(f"CSV: {path}")
 
 
 if __name__ == "__main__":
