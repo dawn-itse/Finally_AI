@@ -78,6 +78,7 @@ class TankBattleUI:
         step_delay_ms: int = 320,
     ):
         self.state = state if state is not None else GameState.create_default_map()
+        self.initial_state = self.state.clone()
         self.agent1 = (
             agent1
             if agent1 is not None
@@ -151,7 +152,7 @@ class TankBattleUI:
             self.p2_mode_idx = -1
 
     def reset_game(self):
-        self.state = GameState.create_default_map(self.state.width, self.state.height)
+        self.state = self.initial_state.clone()
         if hasattr(self.agent1, "reset_metrics"):
             self.agent1.reset_metrics()
         if hasattr(self.agent2, "reset_metrics"):

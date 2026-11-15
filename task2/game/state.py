@@ -65,6 +65,28 @@ class GameState:
 
         return state
 
+    @classmethod
+    def create_tactical_arena(cls):
+        state = cls()
+        state.bases = {1: Base(4, 8, player_id=1), 2: Base(4, 0, player_id=2)}
+        state.tanks = {
+            1: Tank(4, 7, direction="UP", player_id=1),
+            2: Tank(4, 1, direction="DOWN", player_id=2),
+        }
+
+        # Hàng tường so le che giữa sân, hai cánh đều có lối vòng.
+        wall_columns = {
+            2: (1, 4, 7),
+            3: (2, 6),
+            4: (0, 3, 4, 5, 8),
+            5: (2, 6),
+            6: (1, 4, 7),
+        }
+        state.walls = {
+            (x, y): Wall(x, y) for y, columns in wall_columns.items() for x in columns
+        }
+        return state
+
     def is_inside(self, x: int, y: int) -> bool:
         return 0 <= x < self.width and 0 <= y < self.height
 

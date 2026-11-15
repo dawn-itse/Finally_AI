@@ -19,7 +19,7 @@ def create_midgame_scenario() -> GameState:
     return state
 
 
-def run_four_configurations_experiment(depths=None) -> list:
+def run_four_configurations_experiment(depths=None, map_name="default") -> list:
     if depths is None:
         depths = [2, 3, 4, 5]
 
@@ -36,7 +36,10 @@ def run_four_configurations_experiment(depths=None) -> list:
 
     for depth in depths:
         for name, use_ab, use_h in configs:
-            scenario = create_midgame_scenario()
+            if map_name == "tactical_arena":
+                scenario = GameState.create_tactical_arena()
+            else:
+                scenario = create_midgame_scenario()
             agent = MinimaxAgent(
                 player_id=1,
                 depth=depth,
@@ -93,17 +96,21 @@ def simulate_match(agent1, agent2, max_turns: int = 80) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Task 2: Tank Battle Game")
+    parser.add_argument("--map", choices=("default", "tactical_arena"), default="default",
+                        help="Battlefield to load")
     parser.add_argument("--experiment", action="store_true", help="Run benchmark comparing the 4 configurations")
     parser.add_argument("--ext-p2", type=str, default=None, help="Path to external Python file for Player 2 agent")
     parser.add_argument("--ext-class", type=str, default="CustomAgent", help="Class name of external agent")
     args = parser.parse_args()
 
     if args.experiment:
-        run_four_configurations_experiment([2, 3, 4, 5])
+        print(f"Map: {args.map}")
+        run_four_configurations_experiment([2, 3, 4, 5], map_name=args.map)
     else:
         from ui.pygame_ui import TankBattleUI
 
-        ui = TankBattleUI()
+        state = GameState.create_tactical_arena() if args.map == "tactical_arena" else None
+        ui = TankBattleUI(state=state)
         if args.ext_p2:
             ui.import_external_agent(2, args.ext_p2, args.ext_class)
         ui.run()
