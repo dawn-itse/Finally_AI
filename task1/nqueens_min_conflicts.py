@@ -113,8 +113,9 @@ class NQueensMinConflicts:
             # Chọn cột có ít xung đột nhất. Nếu có nhiều cột tốt như nhau thì chọn ngẫu nhiên
             # để tránh bị kẹt mãi ở cùng một lựa chọn (tránh dao động cục bộ).
             column_scores = []
+            current_col = state[row]
             for col in range(self.n):
-                if col == state[row]:
+                if col == current_col:
                     continue
                 state[row] = col
                 score = self._count_conflicts_unchecked(state, row)

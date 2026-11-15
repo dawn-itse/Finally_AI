@@ -21,6 +21,21 @@ def main():
     print("\nSolution board:")
     print(solver.format_board())
 
+    print("\n=== Min-Conflicts demonstration (N = 8) ===")
+    for method_name, solve_method in (
+        ("Standard", "solve_standard"),
+        ("Improved", "solve_heuristic"),
+    ):
+        local_solver = NQueensMinConflicts(n_demo, max_steps=10000, seed=42)
+        local_result = getattr(local_solver, solve_method)()
+        print(
+            f"{method_name}: success={local_result['success']}, "
+            f"steps={local_result['steps']}, time={local_result['solver_time']:.6f}s"
+        )
+        if local_result["board"] is not None:
+            for row in local_result["board"]:
+                print(" ".join("Q" if cell else "." for cell in row))
+
     print("\n=== Experiment with increasing values of N (N >= 4) ===")
     n_values = [4, 8, 12, 16, 20, 25, 30, 40, 50]
     run_experiments(n_values)
